@@ -18,3 +18,12 @@ For the access information in block layer.
 For example, [  180.293609s][pid:3890,cpu4,GLThread 91]->/data/com.king.candycrushsaga/app_storage/social_data.dat, bio-w, 4096, 2849, 28749
 The valid information is starting from "->"
 filename, read/write flag, io size, file size, ino
+
+
+---
+# Deep Learning Final Project Guide
+
+## Dataset Preparation
+1. Download the .zip file at the trace file.
+2. Extract the content into the "mobile-traces" folder.
+3. Make sure its: "mobile-traces/traces/*.txt"
