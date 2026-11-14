@@ -38,7 +38,12 @@ def _lifetime(entries: list[Entry]) -> int:
     tss = {e.timestamp for e in entries}
     return max(tss) - min(tss)
 
-def file_lifetime_df(grouped_entries: dict[str, list[Entry]]) -> pd.DataFrame:
+def file_lifetimes(grouped_entries: dict[str, list[Entry]]) -> pd.DataFrame:
+    """
+    Given log entries grouped by filename, returns a dataframe with
+    each file's lifetime (time difference between last access and first access)
+    in seconds.
+    """
     return pd.DataFrame(
         data=((path, _lifetime(entries)) for path, entries in grouped_entries.items()),
         columns=["path", "lifetime"],
@@ -70,14 +75,15 @@ def _file_io_stats_per_sec(
             if len(rows) >= num_sec:
                 break
 
-            file_size = entry.file_size
             last_access = now
             if entry.vfs_kind == 'vfs_r':
                 read_count += 1
                 read_size += entry.io_size
+                file_size = entry.file_size
             elif entry.vfs_kind == 'vfs_w':
                 write_count += 1
                 write_size += entry.io_size
+                file_size = entry.file_size + entry.io_size
             else:
                 raise ValueError(f"Unknown vfs_kind {entry.vfs_kind!r}")
         else:
@@ -94,6 +100,20 @@ def _file_io_stats_per_sec(
         yield from rows
 
 def file_io_stats_per_sec(grouped_entries: dict[str, Entry], num_sec: int = 20) -> pd.DataFrame:
+    """
+    Given log entries grouped by filename and the `num_sec`, the number of seconds of interest
+    (default 20), return file stats for each file during the first `num_sec` seconds of it existence.
+
+    Every row describes `k`th second of the file's lifetime: the rows are:
+    - path - path to the file
+    - k - relative timestamp (every number in `range(0, num_sec)`)
+    - read_size - total size in bytes of reads by the end of `k`th second
+    - read_count - total number of vfs_read calls by the end of `k`th second
+    - write_size - total size in bytes of writes by the end of `k`th second
+    - write_count - total number of vfs_write calls by the end of `k`th second
+    - file_size - file size in bytes at the end of `k`th second
+    - active_period - the difference between last and first time access by the end of `k`th second
+    """
     return pd.DataFrame(
         data=_file_io_stats_per_sec(grouped_entries, num_sec),
         # k is the relative timestamp
@@ -106,7 +126,7 @@ if __name__ == '__main__':
         filtered = filter_cache(entries)
         grouped = group_by_path(filtered)
 
-        lifetimes = file_lifetime_df(grouped)
+        lifetimes = file_lifetimes(grouped)
         print(lifetimes)
         lifetimes.describe()
 
