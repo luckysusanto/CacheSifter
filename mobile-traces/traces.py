@@ -41,7 +41,7 @@ def do_parse_lines(lines: list[str]) -> list[Entry]:
 
 def filter_cache(entries: list[Entry]) -> list[Entry]:
     # keep only those entries whose paths match cacheSifter's cache dir list
-    return [e for e in entries if any(directory in e.path for directory in CACHE_DIRECTORIES)]
+    return [e for e in entries if any(e.path.startswith(directory) for directory in CACHE_DIRECTORIES)]
 
 def group_by_path(entries: list[Entry]) -> dict[str, list[Entry]]:
     ans = {e.path: [] for e in entries}
