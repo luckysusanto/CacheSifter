@@ -1,0 +1,9 @@
+ipykernel
+matplotlib
+pandas
+plotly
+rdflib
+torch
+scikit-learn
+seaborn
+python-dotenv
