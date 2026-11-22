@@ -80,6 +80,7 @@ def _file_io_stats_per_sec(
             assert entry.timestamp >= previous_timestamp
             previous_timestamp = entry.timestamp
 
+            # convert each entry's timestamp into whole seconds since the file's first access
             elapsed_seconds = (entry.timestamp - first_access_ms) // 1000
 
             while elapsed_seconds > now and len(rows) < num_sec:
@@ -109,7 +110,9 @@ def _file_io_stats_per_sec(
             elif entry.vfs_kind == 'vfs_w':
                 write_count += 1
                 write_size += entry.io_size
-                file_size = entry.file_size + entry.io_size
+                # entry.file_size + entry.io_size won't work when a write overwrites existing data
+                # instead of appending data to the end of the file
+                file_size = max(entry.file_size, entry.offset + entry.io_size)
             else:
                 raise ValueError(f"Unknown vfs_kind {entry.vfs_kind!r}")
         else:
