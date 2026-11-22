@@ -57,3 +57,22 @@ def make_file(i):
 rows, lifetimes = zip(*(make_file(i) for i in range(N_FILES)))
 raw = pd.concat(rows, ignore_index=True)
 raw.to_csv("raw_dummy.csv", index=False)
+
+# Generate Label
+ids = [
+    f"file_{i:03d}" for i in range(N_FILES)
+]
+ap = np.array(lifetimes)
+split = np.array(["train"] * N_FILES, dtype=object)
+perm = RNG.permutation(N_FILES)
+split[perm[int(0.7 * N_FILES) : int(0.85 * N_FILES)]] = "val"
+split[perm[int(0.85 * N_FILES):]] = "test"
+
+labels = pd.DataFrame({
+    'id': ids,
+    'lifetime_active_period': ap,
+    'is_bar': (ap < BAR_MAX).astype(int),
+    'is_long': pd.array(np.where(ap < BAR_MAX, 0, (ap > LONG_MIN)).astype(int)),
+    'split': split
+})
+labels.to_csv('labels.csv', index=False)
