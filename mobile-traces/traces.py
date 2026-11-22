@@ -67,7 +67,7 @@ def file_lifetimes(grouped_entries: dict[int, list[Entry]]) -> pd.DataFrame:
 
 def _file_io_stats_per_sec(
     grouped_entries: dict[int, list[Entry]],
-    num_sec: int = 20,
+    num_sec: int = 91,
 ) -> Generator[tuple, None, None]:
     for ino, entries in grouped_entries.items():
         rows = []
@@ -134,7 +134,7 @@ def _file_io_stats_per_sec(
                 read_size = read_count = write_size = write_count = 0
         yield from rows
 
-def file_io_stats_per_sec(grouped_entries: dict[int, Entry], num_sec: int = 20) -> pd.DataFrame:
+def file_io_stats_per_sec(grouped_entries: dict[int, Entry], num_sec: int = 91) -> pd.DataFrame:
     """
     Given log entries grouped by filename and the `num_sec`, the number of seconds of interest
     (default 20), return file stats for each file during the first `num_sec` seconds of it existence.
