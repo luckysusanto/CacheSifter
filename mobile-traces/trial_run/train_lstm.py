@@ -95,6 +95,7 @@ def main():
     ap.add_argument("--stage", type=int, choices=[1, 2])
     ap.add_argument("--epochs", type=int)
     ap.add_argument("--hidden", type=int)
+    ap.add_argument("--layers", type=int)
     ap.add_argument("--lr", type=float)
     ap.add_argument("--seed", type=int)
     args = ap.parse_args()
@@ -126,6 +127,64 @@ Stage {args.stage}, X {X.shape}
     X = (X - x_mean)/x_std
     s_mean, s_std = static[idx['train']].mean(0), static[idx['train']].std(0) + 1e-6
     static = (static - s_mean)/s_std
+
+    t = {
+        s: (torch.tensor(X[idx[s]]), torch.tensor(static[idx[s]]), torch.tensor(y[idx[s]])) for s in SPLITS
+    }
+    train_dl = DataLoader(
+        TensorDataset(*t['train']),
+        batch_size=16,
+        shuffle=True
+    )
+
+    # (self, input_size, hidden_size, num_layers, n_static, output_size = 1):
+    model = LSTMClassifier(
+        input_size = X.shape[2],
+        hidden_size = args.hidden,
+        num_layers = args.layers,
+        n_static = static.shape[1]
+    )
+    opt = torch.optim.Adam(model.parameters(), lr=args.lr)
+
+    # Class is imbalanced, I'll just use simple class weighting for now,
+    # but, let's think about this more later on
+    n_pos = y[idx['train']].sum()
+    pos_weight = torch.tensor((len(y[idx['train']]) - n_pos)/max(n_pos, 1))
+    loss_fn = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
+
+    def evaluate(split_name):
+        model.eval()
+        xb, sb, yb = t[split_name]
+        with torch.no_grad():
+            logits = model(xb, sb)
+        return loss_fn(logits, yb).item(), metrics(logits, yb)
+
+    best_loss, best_state = float("inf"), None
+    for epoch in range(1, args.epochs + 1):
+        model.train()
+        for xb, sb, yb in train_dl:
+            opt.zero_grad()
+            loss = loss_fn(model(xb, sb), yb)
+            loss.backward()
+            nn.utils.clip_grad_norm_(model.parameters(), 1.0) # gradient clipping, standard for LSTM
+            # if vanishing gradient happen, add residual stream to LSTM
+            opt.step()
+
+        val_loss, val_metric = evaluate("val")
+        if val_loss < best_loss:
+            best_loss, best_state = val_loss, copy.deepcopy(model.state_dict())
+        if epoch % 10 == 0:
+            print(f"Epoch {epoch:3d} | train loss = {evaluate('train')[0]:.3f}")
+            print(f"                 | val loss   = {val_loss:.3f} | (acc, prec, recall, f1): {val_metric}")
+
+    model.load_state_dict(best_state)
+    _, test_m = evaluate('test')
+    majority_baseline_logits = max(y[idx['test']].mean(), 1 - y[idx['test']].mean())
+
+    print(f"""\
+Test             : "{" ".join(f"{k} {v:.2f}" for k, v in test_m.items())}
+Majority Accuracy: {majority_baseline_logits:.3f}
+""")
 
 if __name__ == "__main__":
     main()
