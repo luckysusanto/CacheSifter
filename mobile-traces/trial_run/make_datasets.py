@@ -72,7 +72,8 @@ labels = pd.DataFrame({
     'id': ids,
     'lifetime_active_period': ap,
     'is_bar': (ap < BAR_MAX).astype(int),
-    'is_long': pd.array(np.where(ap < BAR_MAX, 0, (ap > LONG_MIN)).astype(int)),
+    'is_transient': ((ap >= BAR_MAX) & (ap <= LONG_MIN)).astype(int),
+    'is_long': (ap > LONG_MIN).astype(int),
     'split': split
 })
 labels.to_csv('labels.csv', index=False)
