@@ -1,6 +1,7 @@
 mobile-traces/traces/*.zip
 mobile-traces/traces/*.txt
 mobile-traces/traces/*.csv
+*.csv
 
 *env
 *temp
