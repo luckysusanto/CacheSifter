@@ -18,6 +18,7 @@ CACHE_DIRECTORIES = (
     "/data/com.google.android.youtube/cache/",
     "/data/com.ea.game.pvzfree_row/cache/",
     "/data/com.ss.android.ugc.aweme/cache/",
+    "/data/com.ss.android.ugc.trill/cache/",
     "/data/cache/",
 )
 
