@@ -6,6 +6,21 @@ import pandas as pd
 
 Entry = namedtuple("Entry", ["timestamp", "vfs_kind", "path", "io_size", "file_size", "offset", "ino", "pid", "comm"])
 
+# from kernel-code/fs/f2fs/namei.c, is_cache_file()
+CACHE_DIRECTORIES = (
+    "/data/com.king.candycrushsaga/cache/",
+    "/data/com.android.chrome/cache/",
+    "/data/com.google.earth/cache/",
+    "/data/com.facebook.katana/cache/",
+    "/data/org.mozilla.firefox/cache/",
+    "/data/com.google.android.apps.maps/cache/",
+    "/data/com.twitter.android/cache/",
+    "/data/com.google.android.youtube/cache/",
+    "/data/com.ea.game.pvzfree_row/cache/",
+    "/data/com.ss.android.ugc.aweme/cache/",
+    "/data/cache/",
+)
+
 def parse_lines(lines: list[str]) -> Generator[Entry, None, None]:
     for line in lines:
         if ',vfs_r,' in line or ',vfs_w,' in line:
@@ -25,8 +40,8 @@ def do_parse_lines(lines: list[str]) -> list[Entry]:
     return list(parse_lines(lines))
 
 def filter_cache(entries: list[Entry]) -> list[Entry]:
-    # Hopefully, this dumb filtering works
-    return [e for e in entries if '/cache/' in e.path]
+    # keep only those entries whose paths match cacheSifter's cache dir list
+    return [e for e in entries if any(e.path.startswith(directory) for directory in CACHE_DIRECTORIES)]
 
 def group_by_path(entries: list[Entry]) -> dict[str, list[Entry]]:
     ans = {e.path: [] for e in entries}
@@ -56,26 +71,38 @@ def _file_io_stats_per_sec(
     for path, entries in grouped_entries.items():
         rows = []
         read_size = read_count = write_size = write_count = file_size = last_access = 0
-        first_access = now = min(e.timestamp for e in entries)
+        
+        first_access_ms = min(e.timestamp for e in entries)
+        previous_timestamp = first_access_ms
+        now = 0
+
         for entry in entries:
-            assert entry.timestamp >= now
-            while entry.timestamp > now and len(rows) < num_sec:
+            assert entry.timestamp >= previous_timestamp
+            previous_timestamp = entry.timestamp
+
+            # convert each entry's timestamp into whole seconds since the file's first access
+            elapsed_seconds = (entry.timestamp - first_access_ms) // 1000
+
+            while elapsed_seconds > now and len(rows) < num_sec:
                 rows.append((
                     path,
-                    now - first_access,
+                    now,
                     read_size,
                     read_count,
                     write_size,
                     write_count,
                     file_size,
-                    last_access - first_access
+                    last_access
                 ))
+
                 now += 1
                 read_size = read_count = write_size = write_count = 0
+
             if len(rows) >= num_sec:
                 break
 
             last_access = now
+
             if entry.vfs_kind == 'vfs_r':
                 read_count += 1
                 read_size += entry.io_size
@@ -83,19 +110,21 @@ def _file_io_stats_per_sec(
             elif entry.vfs_kind == 'vfs_w':
                 write_count += 1
                 write_size += entry.io_size
-                file_size = entry.file_size + entry.io_size
+                # entry.file_size + entry.io_size won't work when a write overwrites existing data
+                # instead of appending data to the end of the file
+                file_size = max(entry.file_size, entry.offset + entry.io_size)
             else:
                 raise ValueError(f"Unknown vfs_kind {entry.vfs_kind!r}")
         else:
             rows.append((
                 path,
-                now - first_access,
+                now,
                 read_size,
                 read_count,
                 write_size,
                 write_count,
                 file_size,
-                last_access - first_access
+                last_access
             ))
         yield from rows
 
