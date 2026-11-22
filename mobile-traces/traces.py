@@ -18,6 +18,7 @@ CACHE_DIRECTORIES = (
     "/data/com.google.android.youtube/cache/",
     "/data/com.ea.game.pvzfree_row/cache/",
     "/data/com.ss.android.ugc.aweme/cache/",
+    "/data/com.ss.android.ugc.trill/cache/",
     "/data/cache/",
 )
 
@@ -150,15 +151,23 @@ def file_io_stats_per_sec(grouped_entries: dict[str, Entry], num_sec: int = 20) 
     )
 
 if __name__ == '__main__':
+    if len(argv) > 2:
+        lifetimes_csv = argv[2]
+        stats_csv = argv[3]
+    else:
+        lifetimes_csv = stats_csv = None
+
     with open(argv[1], "r") as f:
         entries = do_parse_lines(f.readlines())
         filtered = filter_cache(entries)
         grouped = group_by_path(filtered)
 
         lifetimes = file_lifetimes(grouped)
-        print(lifetimes)
-        lifetimes.describe()
+        print(lifetimes.describe())
+        if lifetimes_csv:
+            lifetimes.to_csv(lifetimes_csv, index=False)
 
         stats = file_io_stats_per_sec(grouped)
-        print(stats)
-        stats.describe()
+        print(stats.describe())
+        if stats_csv:
+            stats.to_csv(stats_csv, index=False)
