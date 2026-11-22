@@ -31,12 +31,12 @@ class LSTMClassifier(nn.Module):
         self.classifier = nn.Linear(hidden_size + n_static, output_size) # n_static for features 
 
     def forward(self, x, static):
-        h0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(x.device())
-        c0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(x.device())
+        h0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(x.device)
+        c0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(x.device)
         out, _ = self.lstm(x, (h0, c0))
         last = out[:, -1, :]
         z = torch.cat([last, static], dim = 1)
-        return self.fc(z).squeeze(1)
+        return self.classifier(z).squeeze(1)
 
 def metrics(logits, y):
     pred = (logits > 0).float()
@@ -103,7 +103,7 @@ def main():
     torch.manual_seed(args.seed)
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(args.seed)
-        torch.backends.cudnn.determiinistic = True
+        torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = False
 
     X, static, y, split = handle_data(
