@@ -118,17 +118,20 @@ def _file_io_stats_per_sec(
             else:
                 raise ValueError(f"Unknown vfs_kind {entry.vfs_kind!r}")
         else:
-            rows.append((
-                ino,
-                entry.path,
-                now,
-                read_size,
-                read_count,
-                write_size,
-                write_count,
-                file_size,
-                last_access
-            ))
+            while len(rows) < num_sec:
+                rows.append((
+                    ino,
+                    entry.path,
+                    now,
+                    read_size,
+                    read_count,
+                    write_size,
+                    write_count,
+                    file_size,
+                    last_access
+                ))
+                now += 1
+                read_size = read_count = write_size = write_count = 0
         yield from rows
 
 def file_io_stats_per_sec(grouped_entries: dict[int, Entry], num_sec: int = 20) -> pd.DataFrame:
