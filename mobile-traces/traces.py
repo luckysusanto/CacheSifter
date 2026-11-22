@@ -101,7 +101,7 @@ def _file_io_stats_per_sec(
             if len(rows) >= num_sec:
                 break
 
-            last_access = elapsed_seconds
+            last_access = now
 
             if entry.vfs_kind == 'vfs_r':
                 read_count += 1
