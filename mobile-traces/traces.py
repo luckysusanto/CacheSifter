@@ -8,17 +8,17 @@ Entry = namedtuple("Entry", ["timestamp", "vfs_kind", "path", "io_size", "file_s
 
 # from kernel-code/fs/f2fs/namei.c, is_cache_file()
 CACHE_DIRECTORIES = (
-    "/data/com.king.candycrushsaga/cache",
-    "/data/com.android.chrome/cache",
-    "/data/com.google.earth/cache",
-    "/data/com.facebook.katana/cache",
-    "/data/org.mozilla.firefox/cache",
-    "/data/com.google.android.apps.maps/cache",
-    "/data/com.twitter.android/cache",
-    "/data/com.google.android.youtube/cache",
-    "/data/com.ea.game.pvzfree_row/cache",
-    "/data/com.ss.android.ugc.aweme/cache",
-    "/data/cache",
+    "/data/com.king.candycrushsaga/cache/",
+    "/data/com.android.chrome/cache/",
+    "/data/com.google.earth/cache/",
+    "/data/com.facebook.katana/cache/",
+    "/data/org.mozilla.firefox/cache/",
+    "/data/com.google.android.apps.maps/cache/",
+    "/data/com.twitter.android/cache/",
+    "/data/com.google.android.youtube/cache/",
+    "/data/com.ea.game.pvzfree_row/cache/",
+    "/data/com.ss.android.ugc.aweme/cache/",
+    "/data/cache/",
 )
 
 def parse_lines(lines: list[str]) -> Generator[Entry, None, None]:
