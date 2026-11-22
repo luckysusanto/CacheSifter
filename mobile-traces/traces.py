@@ -44,32 +44,32 @@ def filter_cache(entries: list[Entry]) -> list[Entry]:
     # keep only those entries whose paths match cacheSifter's cache dir list
     return [e for e in entries if any(e.path.startswith(directory) for directory in CACHE_DIRECTORIES)]
 
-def group_by_path(entries: list[Entry]) -> dict[str, list[Entry]]:
-    ans = {e.path: [] for e in entries}
+def group_by_inode(entries: list[Entry]) -> dict[int, list[Entry]]:
+    ans = {e.ino: [] for e in entries}
     for e in entries:
-        ans[e.path].append(e)
+        ans[e.ino].append(e)
     return ans
 
 def _lifetime(entries: list[Entry]) -> int:
     tss = {e.timestamp for e in entries}
     return max(tss) - min(tss)
 
-def file_lifetimes(grouped_entries: dict[str, list[Entry]]) -> pd.DataFrame:
+def file_lifetimes(grouped_entries: dict[int, list[Entry]]) -> pd.DataFrame:
     """
     Given log entries grouped by filename, returns a dataframe with
     each file's lifetime (time difference between last access and first access)
     in seconds.
     """
     return pd.DataFrame(
-        data=((path, _lifetime(entries)) for path, entries in grouped_entries.items()),
-        columns=["path", "lifetime"],
+        data=((ino, entries[0].path, _lifetime(entries)) for ino, entries in grouped_entries.items()),
+        columns=["inode", "first_observed_path", "lifetime"],
     )
 
 def _file_io_stats_per_sec(
-    grouped_entries: dict[str, list[Entry]],
+    grouped_entries: dict[int, list[Entry]],
     num_sec: int = 20,
 ) -> Generator[tuple, None, None]:
-    for path, entries in grouped_entries.items():
+    for ino, entries in grouped_entries.items():
         rows = []
         read_size = read_count = write_size = write_count = file_size = last_access = 0
         
@@ -86,7 +86,8 @@ def _file_io_stats_per_sec(
 
             while elapsed_seconds > now and len(rows) < num_sec:
                 rows.append((
-                    path,
+                    ino,
+                    entry.path,
                     now,
                     read_size,
                     read_count,
@@ -118,7 +119,8 @@ def _file_io_stats_per_sec(
                 raise ValueError(f"Unknown vfs_kind {entry.vfs_kind!r}")
         else:
             rows.append((
-                path,
+                ino,
+                entry.path,
                 now,
                 read_size,
                 read_count,
@@ -129,7 +131,7 @@ def _file_io_stats_per_sec(
             ))
         yield from rows
 
-def file_io_stats_per_sec(grouped_entries: dict[str, Entry], num_sec: int = 20) -> pd.DataFrame:
+def file_io_stats_per_sec(grouped_entries: dict[int, Entry], num_sec: int = 20) -> pd.DataFrame:
     """
     Given log entries grouped by filename and the `num_sec`, the number of seconds of interest
     (default 20), return file stats for each file during the first `num_sec` seconds of it existence.
@@ -147,7 +149,7 @@ def file_io_stats_per_sec(grouped_entries: dict[str, Entry], num_sec: int = 20) 
     return pd.DataFrame(
         data=_file_io_stats_per_sec(grouped_entries, num_sec),
         # k is the relative timestamp
-        columns=["path", "k", "read_size", "read_count", "write_size", "write_count", "file_size", "active_period"],
+        columns=["inode", "path", "k", "read_size", "read_count", "write_size", "write_count", "file_size", "active_period"],
     )
 
 if __name__ == '__main__':
@@ -160,7 +162,7 @@ if __name__ == '__main__':
     with open(argv[1], "r") as f:
         entries = do_parse_lines(f.readlines())
         filtered = filter_cache(entries)
-        grouped = group_by_path(filtered)
+        grouped = group_by_inode(filtered)
 
         lifetimes = file_lifetimes(grouped)
         print(lifetimes.describe())
