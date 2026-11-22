@@ -71,26 +71,37 @@ def _file_io_stats_per_sec(
     for path, entries in grouped_entries.items():
         rows = []
         read_size = read_count = write_size = write_count = file_size = last_access = 0
-        first_access = now = min(e.timestamp for e in entries)
+        
+        first_access_ms = min(e.timestamp for e in entries)
+        previous_timestamp = first_access_ms
+        now = 0
+
         for entry in entries:
-            assert entry.timestamp >= now
-            while entry.timestamp > now and len(rows) < num_sec:
+            assert entry.timestamp >= previous_timestamp
+            previous_timestamp = entry.timestamp
+
+            elapsed_seconds = (entry.timestamp - first_access_ms) // 1000
+
+            while elapsed_seconds > now and len(rows) < num_sec:
                 rows.append((
                     path,
-                    now - first_access,
+                    now,
                     read_size,
                     read_count,
                     write_size,
                     write_count,
                     file_size,
-                    last_access - first_access
+                    last_access
                 ))
+
                 now += 1
                 read_size = read_count = write_size = write_count = 0
+
             if len(rows) >= num_sec:
                 break
 
-            last_access = now
+            last_access = elapsed_seconds
+
             if entry.vfs_kind == 'vfs_r':
                 read_count += 1
                 read_size += entry.io_size
@@ -104,13 +115,13 @@ def _file_io_stats_per_sec(
         else:
             rows.append((
                 path,
-                now - first_access,
+                now,
                 read_size,
                 read_count,
                 write_size,
                 write_count,
                 file_size,
-                last_access - first_access
+                last_access
             ))
         yield from rows
 
